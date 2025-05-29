@@ -1,0 +1,18 @@
+cd C:\Users\pradip\Desktop\pdf\pdf_query
+
+cd C:\Users\pradip\Desktop\pdf
+
+-------------------------------------
+.\pdf_query_env\Scripts\activate
+-------------------------------------
+cd pdf_query
+uvicorn app.main:app --reload
+-------------------------------------
+
+
+
+
+
+---------------------------------------------------------
+Set the execution policy:
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
