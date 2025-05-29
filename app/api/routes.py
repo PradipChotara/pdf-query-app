@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Response # Added status and Response
 from app.services import pdf_processor, embedding_generator, vector_store, llm_interface
 import os
 import logging
@@ -16,17 +16,53 @@ logger.addHandler(handler)
 
 router = APIRouter()
 
-@router.get("/")
-async def root():
-    log_message = "Server is running and the root endpoint was accessed."
-    logger.info(log_message)
-    return {"response": "SERVER IS RUNNNNIIIINGGGGGG"}
+# Health check endpoint
+@router.get("/health")
+async def health_check():
+    """
+    Health check endpoint to verify if the application is ready to serve.
+    Checks the readiness of the LLM pipeline, embedding generator, and vector store.
+    """
+    health_status = {
+        "llm_ready": False,
+        "embedding_generator_ready": False,
+        "vector_store_ready": False,
+        "overall_status": "UNHEALTHY",
+        "details": []
+    }
 
-@router.get("/test")
-async def test():
-    log_message = "inside test API"
-    logger.info(log_message)
-    return {"response": "test is working"}
+    # Check LLM pipeline readiness
+    if hasattr(llm_interface, 'is_llm_ready') and llm_interface.is_llm_ready():
+        health_status["llm_ready"] = True
+    else:
+        health_status["details"].append("LLM pipeline is not ready.")
+        logger.warning("Health check failed: LLM pipeline is not yet ready.")
+
+    # Check Embedding Generator readiness
+    if hasattr(embedding_generator, 'is_embedding_generator_ready') and embedding_generator.is_embedding_generator_ready():
+        health_status["embedding_generator_ready"] = True
+    else:
+        health_status["details"].append("Embedding generator is not ready.")
+        logger.warning("Health check failed: Embedding generator is not yet ready.")
+
+    # Check Vector Store readiness (including storage access)
+    if hasattr(vector_store, 'is_vector_store_ready') and vector_store.is_vector_store_ready():
+        health_status["vector_store_ready"] = True
+    else:
+        health_status["details"].append("Vector store (or its underlying storage) is not ready.")
+        logger.warning("Health check failed: Vector store is not yet ready.")
+
+    # Determine overall status
+    if (health_status["llm_ready"] and
+        health_status["embedding_generator_ready"] and
+        health_status["vector_store_ready"]):
+        health_status["overall_status"] = "HEALTHY"
+        logger.info("Health check successful: All critical components are ready.")
+        return Response(status_code=status.HTTP_200_OK, content="OK")
+    else:
+        logger.error(f"Health check failed: {health_status['details']}")
+        return Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=f"UNHEALTHY: {', '.join(health_status['details'])}")
+
 
 # Upload endpoint expecting form-data with a file
 @router.post("/upload")
