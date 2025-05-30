@@ -31,3 +31,31 @@ Query:
 ```bash
 curl -X POST -d "pdf_id=yourfile.pdf&query=your query here" http://localhost:8000/query
 ```
+
+## TEST
+
+```bash
+Invoke-WebRequest -Uri 'http://<your_vm_ip>:7000/health' -Method Get
+```
+
+```bash
+$filePath = 'C:\Users\pradip\Downloads\test.pdf' # Adjust the path if running on the VM
+
+$boundary = [System.Guid]::NewGuid().ToString()
+$contentType = "multipart/form-data; boundary=$boundary"
+
+$body = "--$boundary`r`n"
+$body += "Content-Disposition: form-data; name=`"file`"; filename=`"$((Split-Path $filePath -Leaf))`"`r`n"
+$body += "Content-Type: application/pdf`r`n`r`n"
+$body += ([System.IO.File]::ReadAllBytes($filePath) | Out-String) + "`r`n"
+$body += "--$boundary--`r`n"
+
+Invoke-WebRequest -Uri 'http://<your_vm_ip>:7000/upload' -Method Post -ContentType $contentType -Body $body
+```
+
+```bash
+Invoke-WebRequest -Uri 'http://<your_vm_ip>:7000/query' -Method Post -Body @{
+    pdf_id = 'test.pdf';
+    query  = 'which dataset is being used here'
+}
+```
