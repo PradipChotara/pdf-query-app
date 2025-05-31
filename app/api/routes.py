@@ -81,7 +81,7 @@ async def upload_pdf(file: UploadFile = File(...)):
     storage_dir = "data/storage"
     os.makedirs(storage_dir, exist_ok=True)
     file_path = os.path.join(storage_dir, unique_filename)
-
+    
     # Save the uploaded file
     try:
         with open(file_path, "wb") as f:

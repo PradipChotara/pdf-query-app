@@ -26,6 +26,26 @@
             white-space: pre-wrap; /* Preserve whitespace and wrap text */
             word-break: break-word; /* Break long words */
         }
+        #health-check-response {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 15px;
+            display: none;
+            border-radius: 5px;
+            background-color: #f0fff0;
+        }
+        #health-check-response strong {
+            font-weight: bold;
+        }
+        #health-check-response pre {
+            margin-top: 5px;
+            padding: 10px;
+            background-color: #e0eee0;
+            border: 1px solid #d2e9d2;
+            border-radius: 3px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
     </style>
 </head>
 <body>
@@ -59,12 +79,21 @@
             <strong>Response:</strong>
             <pre id="response-output"></pre>
         </div>
+        <button type="button" class="btn btn-secondary mt-2" onclick="checkHealth()">Check Backend Health</button>
+        <div id="health-check-response" class="mt-4">
+            <strong>Backend Health Check:</strong>
+            <pre id="health-status"></pre>
+        </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
+        // --- CONFIGURATION ---
+        // const base_url = 'http://127.0.0.1:8000'; // Replace with your Cloud Run backend URL
+        const base_url = 'https://pdf-query-app-483207225150.europe-west1.run.app'; // Replace with your Cloud Run backend URL
+
         // Global variable to store the pdf_id received from the /upload API
         let uploadedPdfId = null;
 
@@ -140,8 +169,8 @@
                 const uploadFormData = new FormData();
                 uploadFormData.append('file', file, file.name);
 
-                console.log('Attempting to upload file to /upload...');
-                const uploadResponse = await fetch('http://localhost:8000/upload', {
+                console.log(`Attempting to upload file to ${base_url}/upload...`);
+                const uploadResponse = await fetch(`${base_url}/upload`, {
                     method: 'POST',
                     body: uploadFormData
                 });
@@ -201,7 +230,7 @@
                 queryFormData.append('query', textContent);
 
                 console.log(`Attempting to query with pdf_id: ${uploadedPdfId} and query: "${textContent}"...`);
-                const queryResponse = await fetch('http://localhost:8000/query', {
+                const queryResponse = await fetch(`${base_url}/query`, {
                     method: 'POST',
                     body: queryFormData
                 });
@@ -232,6 +261,50 @@
                 textArea.value = '';
             }
         }
+
+        /**
+         * Checks the health of the backend API.
+         */
+        /**
+         * Checks the health of the backend API.
+         */
+        async function checkHealth() {
+            const healthStatusContainer = document.getElementById('health-status');
+            const healthCheckResponseContainer = document.getElementById('health-check-response');
+            showMessage('Checking backend health...', 'info');
+            showLoading(true, 'Checking health...');
+            healthCheckResponseContainer.style.display = 'none';
+
+            try {
+                console.log(`Attempting to call ${base_url}/health...`);
+                const healthResponse = await fetch(`${base_url}/health`, {
+                    method: 'GET'
+                });
+
+                if (healthResponse.ok) {
+                    const healthResult = await healthResponse.text();
+                    console.log('Health API Response:', healthResult);
+                    healthStatusContainer.textContent = healthResult;
+                    healthCheckResponseContainer.style.display = 'block';
+                    showMessage('Backend health check successful!', 'success');
+                } else {
+                    const errorText = await healthResponse.text();
+                    console.error('Health API call failed:', healthResponse.status, healthResponse.statusText, errorText);
+                    healthStatusContainer.textContent = `Error: ${healthResponse.status} ${healthResponse.statusText}\n${errorText}`;
+                    healthCheckResponseContainer.style.display = 'block';
+                    showMessage(`Health check failed: ${healthResponse.status} ${healthResponse.statusText}. Check backend logs.`, 'error');
+                }
+
+            } catch (error) {
+                console.error('Error during health API call:', error);
+                healthStatusContainer.textContent = `An unexpected error occurred: ${error.message}. Check network and backend.`;
+                healthCheckResponseContainer.style.display = 'block';
+                showMessage(`Error during health check: ${error.message}. Check network and backend.`, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
     </script>
 </body>
 </html>
