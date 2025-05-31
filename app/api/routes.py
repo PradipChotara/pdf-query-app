@@ -3,6 +3,7 @@ from app.services import pdf_processor, embedding_generator, vector_store, llm_i
 import os
 import logging
 import sys
+import uuid
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -63,8 +64,6 @@ async def health_check():
         logger.error(f"Health check failed: {health_status['details']}")
         return Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=f"UNHEALTHY: {', '.join(health_status['details'])}")
 
-
-# Upload endpoint expecting form-data with a file
 @router.post("/upload")
 async def upload_pdf(file: UploadFile = File(...)):
     # Verify file is provided and is a PDF
@@ -73,10 +72,15 @@ async def upload_pdf(file: UploadFile = File(...)):
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload a PDF.")
 
+    # Generate a unique filename
+    file_extension = ".pdf"
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
+    logger.info(f"File name: {unique_filename}")
+
     # Prepare storage directory
     storage_dir = "data/storage"
     os.makedirs(storage_dir, exist_ok=True)
-    file_path = os.path.join(storage_dir, file.filename)
+    file_path = os.path.join(storage_dir, unique_filename)
 
     # Save the uploaded file
     try:
@@ -87,7 +91,7 @@ async def upload_pdf(file: UploadFile = File(...)):
             f.write(content)
         logger.info(f"File saved successfully: {file_path}")
     except Exception as e:
-        logger.error(f"Error saving file {file.filename}: {e}")
+        logger.error(f"Error saving file {file.filename} as {unique_filename}: {e}")
         raise HTTPException(status_code=500, detail="Failed to save the uploaded file.")
 
     # Process the PDF
@@ -97,13 +101,14 @@ async def upload_pdf(file: UploadFile = File(...)):
             raise ValueError("No text extracted from PDF.")
         chunks = pdf_processor.split_text_into_chunks(text)
         embeddings = embedding_generator.generate_embeddings(chunks)
-        vector_store.store_embeddings(embeddings, chunks, file.filename)
-        logger.info(f"PDF {file.filename} processed and embeddings stored.")
+        vector_store.store_embeddings(embeddings, chunks, unique_filename)
+        logger.info(f"PDF {file.filename} (processed as {unique_filename}) processed and embeddings stored.")
     except Exception as e:
-        logger.error(f"Error processing PDF {file.filename}: {e}")
+        logger.error(f"Error processing PDF {file.filename} (processed as {unique_filename}): {e}")
         raise HTTPException(status_code=500, detail="Failed to process the PDF.")
 
-    return {"pdf_id": file.filename}
+    # Return the unique filename as the pdf_id
+    return {"pdf_id": unique_filename}
 
 # Query endpoint expecting form-data with fields
 @router.post("/query")
